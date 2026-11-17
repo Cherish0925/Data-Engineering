@@ -1,32 +1,36 @@
 # Integrations
 
-All current front ends use `ai_data.pipeline`. The environment can run independently; integrating with a consumer should not import that consumer into the core.
+All front ends share `ai_data.pipeline` and `ai_data.composition`. Source adapters produce records; consumer adapters turn released records into the inputs their workload needs.
 
 ## Implemented interfaces
 
 | Interface | Current support |
 | --- | --- |
-| Python | `build(recipe_path, output, root=None, allow_plugins=False)`, `profile(path)`, `inspect_release(path)`, `verify_release(path)`. |
-| CLI | `build`, `profile`, `inspect`, `verify`, `schema`, `connect`, `serve`; JSON stdout, errors on stderr with exit code 2. |
-| MCP | Five local stdio tools, official Python SDK v1, one explicit filesystem workspace, no dynamic connector code. |
-| Skill | `skills/data-engineering/SKILL.md`, repository-scoped operating guidance for compatible agent hosts. It is not automatically installed in any account. |
-| Connector plugin | Installed Python entry points under `ai_data.connectors`, explicitly enabled by SDK/CLI. No marketplace package or compatibility claim for every host. |
+| Python | `build`, `profile`, `inspect_release`, `verify_release`, `compose`, `verify_mixture`, `MixtureReader`. |
+| CLI | `build`, `profile`, `inspect`, `verify`, `compose`, `verify-mixture`, `schema`, `connect`, `serve`; JSON stdout, errors on stderr with exit code 2. |
+| MCP | Seven stdio tools over the same data operations, using the official Python SDK v1 and a configured filesystem workspace. |
+| Skill | `skills/data-engineering/SKILL.md`, repository-scoped operating guidance for compatible agent hosts. |
+| Connector plugin | Installed Python entry points under `ai_data.connectors`, enabled by SDK/CLI. |
 | Canonical JSONL | Native reader for record schema `1.0`. |
-| Verifiable Agent Gym | Native reader for export schema `1`; task splits and factual trajectories are retained. |
+| Verifiable Agent Gym | Task release input to Gym; episode/rollout export-v1 input from Gym. Original splits, policy/group identities and supplied model statistics survive the handoff. |
+
+See [training consumption](consumption.md) for mixture recipes, rank assignment and reader checkpoints. MCP controls preparation and returns metadata; trainers consume shard files directly.
 
 ## Gym handoff
 
-Read against [Gym commit 47f86d6](https://github.com/Cherish0925/Verifiable-Agent-Gym/tree/47f86d6df665388bf6d6627b8f8c403c8e5d2567), especially [`export.py`](https://github.com/Cherish0925/Verifiable-Agent-Gym/blob/47f86d6df665388bf6d6627b8f8c403c8e5d2567/src/agent_gym/export.py). This adapter consumes an exported file; it does not launch Gym.
+The adapter reads Gym episode export-v1, including the `rollout` and `policy_steps` extensions from Gym v0.2. Build task records with the `sql/v1` payload profile, then load that release through Gym's `load_taskpack`. The complete round trip runs in [`examples/experience_cycle.py`](../examples/experience_cycle.py).
 
 ```sh
 agent-gym export runs/my-agent --output workspace/gym-export.jsonl --include-unscored
+# For grouped RolloutBatch runs:
+agent-gym export-rollouts runs/learner --output workspace/rollouts.jsonl
 ```
 
-Check the installed Gym CLI for its supported flags if using a different version. Create a recipe in `workspace` using connector `gym-jsonl`, the export's relative path, a source URI/revision and `allowed_uses`. The runnable example is `examples/gym.recipe.json`.
+Create a recipe in `workspace` using connector `gym-jsonl`, the export's relative path, a source URI/revision and `allowed_uses`. The runnable import recipe is `examples/gym.recipe.json`.
 
-The adapter preserves the whole exported payload. Records are grouped by task family, version, original split and seed, keeping difficulty variants, agents and attempts together. Scored `passed`/`failed` records must carry a finite reward in [0,1]; unscored records retain null rewards. Success does not synthesize missing reasoning, policy probabilities or a preference comparison. A training adapter must explicitly decide how to use failures, timeouts and scored attempts.
+The adapter preserves the whole exported payload. Records are grouped by task family, version, original split and seed, keeping difficulty variants, agents and attempts together. Scored `passed`/`failed` records carry a finite reward in [0,1]; unscored records retain null rewards. Consumer recipes define how each outcome contributes to learning.
 
-## Add a trusted connector
+## Add a connector
 
 An installed connector is an ordinary Python function:
 
@@ -43,9 +47,9 @@ Register it in that package's `pyproject.toml`:
 my-source = "my_package.connector:read"
 ```
 
-Invoke with `ai-data build recipe.json --output runs/custom-v1 --allow-plugins`. The connector must validate its own source options, emit stable IDs/revisions and declare meaningful groups and uses. Treat record text as data. An installed plugin has ordinary process privileges; the entry point is not a sandbox.
+Invoke with `ai-data build recipe.json --output runs/custom-v1 --allow-plugins`. The connector validates its source options, emits stable IDs/revisions and declares groups and uses. MCP uses the built-in connectors.
 
-In v0.1 every source still supplies a workspace-relative local `path` whose bytes are hashed. A remote connector may use that file as a pinned source descriptor, but the connector must bind fetched remote bytes to declared revisions. The core does not verify remote immutability, checkpoints or hidden dependencies; multi-input/streaming source manifests are planned. Plugin distribution name/version and entry point are recorded, but the installed plugin's full source and environment are not yet hashed.
+Each source supplies a workspace-relative local `path` whose bytes are hashed. A remote connector can use that file as a pinned source descriptor and bind fetched bytes to declared revisions. Manifests record the plugin's distribution, version and entry point. Multi-input source snapshots and distributed preparation are extension points.
 
 ## Reuse targets
 
@@ -61,7 +65,7 @@ These are architectural reuse choices, **not implemented adapters**. Versions an
 | [Feast](https://docs.feast.dev/getting-started/concepts/point-in-time-joins) | Historical/online feature serving | Preserve entity identity and point-in-time selection; separately track when a value became available. |
 | [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk/tree/v1.x) | Agent tool transport | Pin the v1 API used here; upgrade through a tested interface change. |
 
-Hugging Face datasets/Hub, object stores, SQL sources, search/knowledge systems, Ray/Spark, workflow engines, annotation systems and trainer-specific sinks are further integration targets. Add them when a concrete source or consumer requires them; do not advertise them as connected because a name appears in a table.
+Hugging Face datasets/Hub, object stores, SQL sources, search/knowledge systems, Ray/Spark, workflow engines, annotation systems and trainer-specific sinks are further integration targets. Choose each adapter from a concrete source or consumer workload.
 
 ## Deployment growth
 

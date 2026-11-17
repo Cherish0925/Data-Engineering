@@ -1,6 +1,6 @@
 # Data contracts
 
-The v0.1 reference implementation uses record and recipe schema `1.0`. The envelope is deliberately smaller than the full system design. It preserves domain payloads; it does not claim to validate all their semantics.
+The v0.2 implementation uses record and source-recipe schema `1.0`. The common envelope preserves domain payloads and their origin. [Composition](consumption.md) adds a separate mixture recipe, indexed shard manifest and consumer state.
 
 ## Record
 
@@ -66,9 +66,9 @@ For identical input bytes, recipe, connector behavior and core code, releases ar
 | `lineage.jsonl` | Retained output IDs, represented input IDs, parents and source. |
 | `manifest.json` | Recipe, input byte hashes, connector identities, core source fingerprint, output byte hashes/sizes, counts and release ID. |
 
-The release ID hashes the canonical manifest without its own `release_id` field. This is integrity checking against a trusted manifest, not an authenticity signature. `verify` checks the manifest digest, declared output file set, file bytes, partition labels, IDs, allowed use and counts. It does not prove the truth of input data or re-run the producer.
+The release ID hashes the canonical manifest without its own `release_id` field. `verify` checks the manifest digest, declared output file set, file bytes, partition labels, IDs, allowed use and counts.
 
-Builds stage outputs beside the destination and rename on success. A lock coordinates local writers. Existing destinations are refused; ordinary exceptions remove staging and the acquired lock. A killed process may leave a staging directory or lock: inspect the process before removing that specific stale file. This is not a distributed transaction or a power-loss durability guarantee.
+Builds stage outputs beside the destination and rename on success. A lock coordinates local writers. Each release uses a new destination; ordinary exceptions remove staging and the acquired lock. A killed process may leave a staging directory or lock that needs cleanup after the process has stopped.
 
 Source bytes stay at their original location. The manifest hashes them but does not archive them; preserve input snapshots separately for reproduction. Unknown-use records are not copied to partition files; decision metadata still records their IDs and sources. Artifact URIs inside payloads are retained without fetching or verifying the referenced bytes. A withdrawn source will require affected releases and derived indexes to be rebuilt or retired; automated withdrawal propagation is planned.
 

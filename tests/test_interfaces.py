@@ -63,12 +63,24 @@ class MCPTests(unittest.IsolatedAsyncioTestCase):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         names = {t.name for t in (await session.list_tools()).tools}
-                        self.assertEqual(names, {"data_capabilities", "data_profile", "data_build", "data_inspect", "data_verify"})
+                        self.assertEqual(names, {"data_capabilities", "data_profile", "data_build", "data_inspect", "data_verify",
+                                                 "data_compose", "data_verify_mixture"})
                         result = await session.call_tool("data_build", {"recipe": "local.recipe.json", "output": "release"})
                         self.assertFalse(result.isError, result.content)
                         result = await session.call_tool("data_verify", {"path": "release"})
                         self.assertFalse(result.isError, result.content)
                         self.assertTrue(json.loads(result.content[0].text)["ok"])
+                        manifest = json.loads((root / "release/manifest.json").read_text(encoding="utf-8"))
+                        recipe = {"schema_version": "1.0", "name": "mcp-mixture",
+                                  "sources": [{"name": "examples", "path": "release", "release_id": manifest["release_id"],
+                                               "split": "train", "weight": 1}], "seed": "mcp-test",
+                                  "budget": {"unit": "records", "value": 12}, "shard_records": 5, "exhaustion": "repeat"}
+                        (root / "mixture.json").write_text(json.dumps(recipe), encoding="utf-8")
+                        mixed = await session.call_tool("data_compose", {"recipe": "mixture.json", "output": "mixture"})
+                        self.assertFalse(mixed.isError, mixed.content)
+                        checked = await session.call_tool("data_verify_mixture", {"path": "mixture"})
+                        self.assertFalse(checked.isError, checked.content)
+                        self.assertEqual(json.loads(checked.content[0].text)["records"], 12)
                         forbidden = await session.call_tool("data_profile", {"path": "../outside.jsonl"})
                         self.assertTrue(forbidden.isError)
                         overwrite = await session.call_tool("data_build", {"recipe": "local.recipe.json", "output": "release"})

@@ -1,36 +1,44 @@
 # Research agenda
 
-The question is how data choices change useful capability under a resource budget. A dataset-level score is a measurement of one property, not a universal ordering of datasets.
+The object of study is a data policy: how sources are acquired, transformed, selected and sampled for a particular consumer. Its value is the resulting capability at a specified cost. The same policy can help one domain and reduce performance in another, so experiments report the affected task distribution alongside aggregate results.
 
-## Questions that lead to experiments
+[Public frontier workloads](frontier-workloads.md) ground the engineering requirements. [Consumption](consumption.md) describes the current experimental machinery: pinned source releases, budgeted mixtures, indexed shards and restorable rank readers. Verifiable Agent Gym adds finite task suites, repeated attempts, policy identity and environment feedback.
 
-| Question | Intervention | What would change our decision? |
+## Decisions worth studying
+
+| Decision | Intervention and mechanism | Evidence that changes the next data decision |
 | --- | --- | --- |
-| Which additional data has marginal value? | Compare coverage-aware selection, random additions and current selection at matched training budgets. | A reproducible gain on the intended task distribution, including costly or rare failures. |
-| What mixture and curriculum work? | Change source proportions, difficulty schedules or replay allocation while fixing the consumer and total budget. | Better learning efficiency or final capability, with the affected domains identified. |
-| When does synthetic data add information? | Vary generation conditions, teacher diversity and verification independently; group shared ancestors. | Benefits that persist beyond template duplicates and held-out generator families. |
-| Which tasks teach transferable behavior? | Vary task/environment families and reward construction; hold out mechanisms, instances or compositions as appropriate. | Transfer to different tasks or environments, not merely new seeds of the same template. |
-| Which structure must multimodal data preserve? | Compare sampling/alignment/representation choices under the same consumer architecture. | Changes attributable to temporal, spatial or causal structure, measured on relevant outcomes. |
-| How should deployed feedback become learning data? | Compare feedback selection and refresh policies with fixed temporal windows and explicit consumer versions. | Improved adaptation without using information unavailable at the time or losing earlier capability. |
+| Source allocation | Vary domain/language/source weights at matched consumption budgets; separate additional coverage from repeated exposure. | Learning curves and held-out domain results show where the next unit of compute should be allocated. |
+| Synthetic candidate selection | Vary teacher diversity, attempts per task and selection rules separately. Track shared source and generator ancestry. | Accepted candidates improve a consumer on held-out mechanisms or source families enough to justify generation and verification cost. |
+| Task distribution and curriculum | Change task families, difficulty and composition while fixing the learner and interaction budget. | Transfer and sample efficiency improve; per-family results identify which behaviors were learned. |
+| Experience reuse | Compare fresh and replayed trajectories at explicit policy lag, feedback type and generation cost. | Reuse yields useful learning per unit of compute, with the effect of stale behavior and selection made measurable. |
+| Representation and alignment | Change document packing, temporal windows, sensor alignment or multimodal sampling while preserving the underlying observations. | Relevant downstream outcomes identify which boundaries, timing or spatial relations the consumer needs. |
+| Feedback and refresh | Compare collection and update policies using event time, availability time and versioned consumer outcomes. | Adaptation, retrieval freshness or scientific information gain improves at a measured acquisition and update cost. |
 
-These are research directions, not results already obtained by this repository.
+Each question can use a small working experiment before requiring large infrastructure. Full-scale training, multimodal decoding and online acquisition enter through consumer and source adapters appropriate to that experiment.
+
+## Studies enabled by v0.2
+
+**Mixture and delivery.** Build two or more source releases, pin them in a recipe and vary weights under a record or supplied-token budget. Use `MixtureReader` to keep sample assignment and restart behavior explicit. First measure source exposure, bytes, throughput and memory with [the composition script](../examples/measure_composition.py); then connect the same products to a fixed trainer and measure learning. Source draw weights apply to records, so differences in record length must be measured when interpreting token exposure.
+
+**Task data to grouped experience.** Prepare a versioned SQL task pack or generated scientific task suite. Hold the environment and task distribution fixed, collect several policy attempts per task and compare how candidate count or selection changes useful experience per model call. Keep task groups intact across ranks. The runnable starting points are Gym's [SQL workload](https://github.com/Cherish0925/Verifiable-Agent-Gym/tree/main/examples/sql-workload) and [batched rollout example](https://github.com/Cherish0925/Verifiable-Agent-Gym/blob/main/examples/batched_rollouts.py).
+
+**Feedback to the next data product.** Import rollout exports through `gym-jsonl`, retain policy/task identities and compare selection or replay recipes. Measure downstream effect with a fixed consumer or the necessary crossed data/consumer comparisons. Scored failures, truncations and environment errors lead to different data decisions; preserve their observed status when constructing the next product.
+
+These paths supply the data and execution operations. Their next research result is a measured consumer effect, such as a changed learning curve or transfer result.
+
+The [experience-cycle example](../examples/experience_cycle.py) connects the last two paths: SQL task release → eight grouped attempts → trajectory release → three mixture shards → two reader ranks and restart. It gives selection and replay studies an executable starting point.
 
 ## Experimental unit and attribution
 
-Start with the consumer, task distribution, data-generating process and independence unit. Count independent documents, entities, task families, scenes or experiments alongside rows/tokens. A hundred paraphrases of one source are not a hundred independent observations.
+Start with the target behavior, consumer, data-generating process and independent sample unit. Count independent documents, entities, scenes, task mechanisms or experiments alongside rows and tokens. Related fragments and generated variants retain their parent group. Choose time, ancestry, domain or mechanism holdouts according to the generalization question.
 
-Record the manipulated data decision, the release, the consumer version, the compute budget and the downstream outcome. Use suitable baselines and repetitions when variation matters. Compare data policies at matched resource budgets, or explicitly measure the resulting cost/performance tradeoff. Processing throughput and memory matter when they determine which policy is affordable.
+A useful experiment records the manipulated data decision, source and product versions, consumer/policy revision, execution conditions, consumed units and downstream outcome. Compare at matched budgets or report the cost/performance curve. Repeat runs when sampling or optimization variation could change the decision. When data and consumer both change, fix one or use crossed comparisons to identify the cause.
 
-When both data and consumer change, hold one fixed or use the necessary crossed comparisons to identify the cause. Model/harness comparisons follow the same principle. Split by time, ancestry or mechanism when those variables define the desired generalization; a random row split may answer a different question.
+Measure three stages separately: **construction** determines which data exists and its acquisition cost; **delivery** determines whether the consumer can obtain the intended stream efficiently; **learning or use** determines whether the data improves the system. Fast composition enables a larger experiment but is a different result from improved model capability.
 
-## What to preserve
+Scientific and embodied workloads additionally retain units, calibration, uncertainty, synchronization, coordinate systems and intervention history. An observed measurement, a simulation output and a model estimate have different roles in the inference even when their numerical values agree.
 
-Preserve raw observations, transformations, generation conditions, rejected examples and reasons when they are informative, annotation disagreements, verifier versions and consumer feedback. Preserve failure categories: wrong prediction, invalid action, missing evidence, environment failure, timeout and cancellation can require different remedies.
+## Reusable outputs
 
-For experiments and robotics, distinguish observation from intervention, simulation from measurement, and estimated labels from reference values. Units, uncertainty, synchronization and coordinate transformations affect meaning; they are part of the data method.
-
-## First useful research artifacts
-
-Use small, executable studies that can be scaled: a corpus-mixture comparison, a synthetic-task family with a meaningful holdout, or a trajectory-to-training transformation with measured downstream effect. Store code, recipes and compact results in Git; reference versioned large data externally. A study should explain why a data decision helped or failed, and what another researcher can reuse.
-
-The core currently supplies release construction and interfaces. Automated mixture optimization, active collection, task synthesis, data valuation and continual-learning policies remain research work. A new research direction should produce a method or an informative experiment before introducing another management layer.
+Store methods, recipes, adapters, compact results and the interpretation of changed decisions in Git. Reference large data and consumer checkpoints by version. A completed study should leave another researcher able to repeat the intervention, understand its cost and apply the resulting method to a new workload.
