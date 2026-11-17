@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "name": "mixed-data-reference",
+  "sources": [{"connector": "jsonl", "path": "records.jsonl"}],
+  "use": "train",
+  "seed": "reference-1",
+  "splits": {"train": 0.8, "validation": 0.1, "test": 0.1}
+}

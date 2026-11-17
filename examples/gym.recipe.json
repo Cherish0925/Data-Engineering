@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "name": "gym-export-reference",
+  "sources": [{
+    "connector": "gym-jsonl",
+    "path": "gym-export.jsonl",
+    "uri": "example://gym-adapter-fixtures",
+    "revision": "fixture-v1",
+    "allowed_uses": ["train", "evaluate", "analyze"]
+  }],
+  "use": "analyze",
+  "seed": "gym-reference-1",
+  "splits": {"train": 0.8, "validation": 0.1, "test": 0.1}
+}
