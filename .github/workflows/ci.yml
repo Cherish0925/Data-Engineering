@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Cherish0925/Verifiable-Agent-Gym
-          ref: 821492e21d66b3adc2944a0fdb3239c495cd3ed8
+          ref: ba714c23dce2ff42ba5806dfce1887adfc1e092a
           path: gym
       - uses: actions/setup-python@v5
         with:
