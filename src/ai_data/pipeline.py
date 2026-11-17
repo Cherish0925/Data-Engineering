@@ -9,6 +9,7 @@ import shutil
 import tempfile
 
 from .connectors import json_lines, resolve_reader
+from . import __version__
 from .contracts import SPLITS, confined, digest, dumps, file_digest, strict_json, validate_recipe, validate_record
 
 
@@ -156,7 +157,7 @@ def build(recipe_path: str | Path, output: str | Path, *, root: str | Path | Non
         implementation = {p.name: file_digest(p) for p in sorted(Path(__file__).parent.glob("*.py"))}
         manifest = {
             "schema_version": "1.0", "name": recipe["name"], "recipe": recipe,
-            "builder": {"name": "ai-data-engineering", "version": "0.1.0", "source_sha256": digest(implementation)},
+            "builder": {"name": "ai-data-engineering", "version": __version__, "source_sha256": digest(implementation)},
             "connectors": providers, "inputs": inputs, "files": files,
             "counts": {"input": len(records), "retained": len(retained), "splits": counts,
                        "decisions": dict(Counter(r["decision"] for r in decisions))},

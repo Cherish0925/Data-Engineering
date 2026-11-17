@@ -9,6 +9,7 @@ import sys
 
 from .contracts import record_schema
 from .pipeline import build, inspect_release, profile, verify_release
+from .composition import compose, verify_mixture
 
 
 def main(argv=None) -> int:
@@ -17,7 +18,7 @@ def main(argv=None) -> int:
             stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(prog="ai-data", description="Build versioned AI data products.")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("profile", "inspect", "verify"):
+    for name in ("profile", "inspect", "verify", "verify-mixture"):
         command = commands.add_parser(name)
         command.add_argument("path")
     builder = commands.add_parser("build")
@@ -25,6 +26,10 @@ def main(argv=None) -> int:
     builder.add_argument("--output", required=True)
     builder.add_argument("--root", help="source workspace; defaults to recipe directory")
     builder.add_argument("--allow-plugins", action="store_true", help="load trusted installed connector code")
+    composer = commands.add_parser("compose", help="compose pinned source releases into indexed training shards")
+    composer.add_argument("recipe")
+    composer.add_argument("--output", required=True)
+    composer.add_argument("--root", help="source workspace; defaults to recipe directory")
     commands.add_parser("schema")
     server = commands.add_parser("serve")
     server.add_argument("--root", required=True)
@@ -35,6 +40,10 @@ def main(argv=None) -> int:
     try:
         if args.command == "build":
             result = build(args.recipe, args.output, root=args.root, allow_plugins=args.allow_plugins)
+        elif args.command == "compose":
+            result = compose(args.recipe, args.output, root=args.root)
+        elif args.command == "verify-mixture":
+            result = verify_mixture(args.path)
         elif args.command == "profile":
             result = profile(args.path)
         elif args.command == "inspect":
